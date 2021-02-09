@@ -21,6 +21,10 @@ struct Register{
     Register(CustomerData c) : cust(c), isInUse(true) {}
 };
 
+// Creating files to dump in
+std::ofstream outfile1("singleline.txt");
+std::ofstream outfile2("multiplelines.txt");
+
 int main(int argc, char **argv){
     
     // Initializing maximum time between customers (maxBetween),
@@ -39,10 +43,6 @@ int main(int argc, char **argv){
     else{
         srand(time(nullptr));
     }
-
-    // Creating files to dump in
-    std::ofstream outfile1("singleline.txt");
-    std::ofstream outfile2("multiplelines.txt");
     
     // Initializing register queues
     Queue *q1 = new Queue(); // Single line -> 3 registers
@@ -83,45 +83,15 @@ int main(int argc, char **argv){
     for(int i = beginTime; i <= 720; i++){
         // Check if service is complete at any register
         for(int j = 0; j < 3; j++){
+            Register registerS = registersS[j];
+            Register registerM = registersM[j];
             // Single Queue Simulation
-            if(registersS[j].isInUse == true){
-                if(i == (registersS[j].cust.serviceTime)){ // Service is complete, remove from register
-                    outfile1<<"Customer "<<registersS[j].cust.customerNumber<<" departed at "<<(i)<<"\n";
-                    registersS[j].cust = CustomerData();
-                    registersS[j].isInUse = false;
-                    if(q1->isEmpty() == false){
-                        registersS[j].cust = q1->dequeue();
-                        int waitTime = i - registersS[j].cust.arrivalTime;
-                        avgWaitS += waitTime;
-                        if(waitTime >= maxWaitS){
-                            maxWaitS = waitTime;
-                        }
-                        registersS[j].cust.serviceTime += i;
-                        registersS[j].isInUse = true;
-                        outfile1<<"Customer "<<(registersS[j].cust.customerNumber)<<" served by "<<(j+1)<<
-                        " starting at "<<(i)<<"\n";
-                    }
-                }
+            if(registerS.isInUse == true){
+                simulateQueue(registerS, q1, i, j, avgWaitS, maxWaitS, 1);
             }
             // Multi Queue Simulation
             if(registersM[j].isInUse){
-                if(i == (registersM[j].cust.serviceTime)){ // Service is complete, remove from register
-                    outfile2<<"Customer "<<registersM[j].cust.customerNumber<<" departed at "<<(i)<<"\n";
-                    registersM[j].cust = CustomerData();
-                    registersM[j].isInUse = false;
-                    if(multQ[j]->isEmpty() == false){
-                        registersM[j].cust = multQ[j]->dequeue();
-                        int waitTime = i - registersM[j].cust.arrivalTime;
-                        avgWaitM += waitTime;
-                        if(waitTime >= maxWaitM){
-                            maxWaitM = waitTime;
-                        }
-                        registersM[j].cust.serviceTime += i;
-                        registersM[j].isInUse = true;
-                        outfile2<<"Customer "<<(registersM[j].cust.customerNumber)<<" served by "<<(j+1)<<
-                        " starting at "<<(i)<<"\n";
-                    }
-                }
+                simulateQueue(registerM, multQ[j], i, j, avgWaitM, maxWaitM, 2);
             }
         }
         // Check if the next customer has arrived, if so then create a new arrival
@@ -139,6 +109,8 @@ int main(int argc, char **argv){
             bool cust2Helped = false;
             // Loop through registers
             for(int k = 0; k < 3; k++){
+                Register registerS = registersS[k];
+                Register registerM = registersM[k];
                 // Single Queue check
                 if(!registersS[k].isInUse && cust1Helped == false){
                     registersS[k].cust = newCustomerS;
@@ -203,4 +175,43 @@ int main(int argc, char **argv){
     }
     
     return 0;
+}
+
+void simulateQueue(Register r, Queue *q, int i, int j, int avgWait, int maxWait, int fileNum){
+    if(i == (r.cust.serviceTime)){
+        removeFromRegister(r, i, fileNum);
+        if(q->isEmpty() == false){
+            r.cust = q->dequeue();
+            int waitTime = i - r.cust.arrivalTime;
+            calculateMaxWait(waitTime, avgWait, maxWait);
+            r.cust.serviceTime += i;
+            r.isInUse = true;
+            if(fileNum == 1) outfile1<<"Customer "<<(r.cust.customerNumber)<<" served by "<<(j+1)<<" starting at "<<(i)<<"\n";
+            if(fileNum == 2) outfile2<<"Customer "<<(r.cust.customerNumber)<<" served by "<<(j+1)<<" starting at "<<(i)<<"\n";
+        }
+    }
+}
+
+void removeFromRegister(Register r, int i, int fileNum){
+    if(fileNum == 1) outfile1<<"Customer "<<r.cust.customerNumber<<" departed at "<<(i)<<"\n";
+    if(fileNum == 2) outfile2<<"Customer "<<r.cust.customerNumber<<" departed at "<<(i)<<"\n";
+    r.cust = CustomerData();
+    r.isInUse = false;
+}
+
+void calculateMaxWait(int waitTime, int avgWait, int maxWait){
+    avgWait += waitTime;
+    if(waitTime >= maxWait){
+        maxWait = waitTime;
+    }
+}
+
+void addToRegFromQ(Register r, Queue *q, int i, int j, int avgWait, int maxWait){
+    r.cust = q->dequeue();
+    int waitTime = i - r.cust.arrivalTime;
+    calculateMaxWait(waitTime, avgWait, maxWait);
+    r.cust.serviceTime += i;
+    r.isInUse = true;
+    outfile1<<"Customer "<<(r.cust.customerNumber)<<" served by "<<(j+1)<<
+    " starting at "<<(i)<<"\n";
 }
